@@ -1,0 +1,26 @@
+SRC=src
+
+all : lib
+
+# 'all', with compilation warnings and debug symbols enabled
+debug :
+	%MAKE% "CF=-Wall -g"  all
+
+lib : resources/libraries/%LIB_NAME%
+
+resources/libraries/%LIB_NAME% : $(SRC)/packing%O%
+	%LD% %LDSHARED% %LDFLAGS% %LDOUT%resources/libraries/%LIB_NAME% $(SRC)/packing%O%
+
+$(SRC)/packing%O% : $(SRC)/packing.c $(SRC)/packing.h
+	%CC% -I $(SRC) -c %CCSHARED% %CCFLAGS% %CCOUT%$(SRC)/packing%O% $(SRC)/packing.c
+
+test : all
+	@prove -e"raku -I ." -v t
+
+clean :
+	@rm -f $(SRC)/*.o resources/libraries/%LIB_NAME%
+
+realclean : clean
+	@rm -f Makefile
+
+

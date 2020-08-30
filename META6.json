@@ -1,0 +1,19 @@
+{
+    "perl"        : "6.c",
+    "name"        : "CStruct::Packing",
+    "license"     : "Artistic-2.0",
+    "tags"        : ["binary", "endian", "native", "struct", "pack", "unpack" ], 
+    "version"     : "0.0.4",
+    "auth"        : "github:pdf-raku",
+    "description" : "Endian safe Binary Struct packing and unpacking",
+    "depends"     : [ ],
+    "resources": [
+        "libraries/packing"
+    ],
+    "source-url"  : "git://github.com/pdf-raku/CStruct-Packing-raku.git",
+    "provides"    : {
+
+        "CStruct::Packing" : "lib/CStruct/Packing.rakumod"
+
+     }
+}
