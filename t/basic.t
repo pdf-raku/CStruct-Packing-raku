@@ -11,7 +11,7 @@ class N does CStruct::Packing[BigEndian] is repr('CStruct') {
 }
 
 is N.packed-size, 8, '.packed-size';
-is N.struct-size, nativesizeof(N), '.unpacked-size';
+is N.unpacked-size, nativesizeof(N), '.unpacked-size';
 
 my $struct = N.new: :a(10), :b(20), :c(30), :float(42e0);
 my $n-buf = $struct.pack;

@@ -99,13 +99,13 @@ Utility method to read and unpack a structure from a file handle.
 Uitility method to pack and write a structure to a file handle.
 
 
-### layout
+### packing-layout
 
-    method layout(--> CArray)
+    method packing-layout(--> CArray)
 
-Precomputes the memory layout for a structure.
+Precomputes the memory layout and endian conversionsfor a structure.
 
-    my $layout = Rec.layout; # precompute layout
+    my $layout = Rec.packing-layout; # precompute layout
     my @recs = 100 xx Rec.read($fh, :$layout);
 
 ### packed-size

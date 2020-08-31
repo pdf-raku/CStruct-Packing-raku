@@ -20,7 +20,7 @@ class NetStruct is repr('CStruct') does CStruct::Packing[NetworkEndian] {
     HAS SubStruct2 $.s2;
 }
 
-my @layout = NetStruct.layout.list;
+my @layout = NetStruct.packing-layout.list;
 if $*KERNEL.endian == LittleEndian {
     is-deeply @layout, [0, -2,   0, -1,   1, -2,   2,  4,   0, 0];
 }

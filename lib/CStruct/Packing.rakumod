@@ -24,6 +24,7 @@ attributes, representing the structure of the data.
     my class GifHeader
         is repr('CStruct')
         does CStruct::Packing[BigEndian] {
+
         has uint16 $.width;
         has uint16 $.height;
         has uint8 $.flags;
@@ -106,7 +107,7 @@ my role Packing {
 role CStruct::Packing[Endian $endian = HostEndian]
     does Packing {
 
-    method pack(Any:D: Blob $buf? is copy, :$layout = self.layout --> Blob) {
+    method pack(Any:D: Blob $buf? is copy, :$layout = self.packing-layout --> Blob) {
         my $bytes := packing_packed_size($layout);
         $buf //= buf8.allocate($bytes);
         die "buffer size ({$buf.bytes}) < {$bytes} bytes" unless $buf.bytes >= $bytes;
@@ -114,7 +115,7 @@ role CStruct::Packing[Endian $endian = HostEndian]
         $buf;
     }
 
-    method unpack(Blob:D $buf is copy, :$layout = self.layout, UInt :$offset) {
+    method unpack(Blob:D $buf is copy, :$layout = self.packing-layout, UInt :$offset) {
         my $bytes := packing_packed_size($layout);
         $buf .= subbuf($offset) if $offset;
         die "buffer size ({$buf.bytes}) < {$bytes} bytes" unless $buf.bytes >= $bytes;
@@ -123,18 +124,18 @@ role CStruct::Packing[Endian $endian = HostEndian]
         $obj;
     }
 
-    method read(IO::Handle \fh, UInt :$offset, :$layout = self.layout) {
+    method read(IO::Handle \fh, UInt :$offset, :$layout = self.packing-layout) {
         fh.read($_) with $offset;
         my $buf := fh.read(packing_packed_size($layout));
         self.unpack($buf, :$layout);
     }
 
-    method write(Any:D: IO::Handle \fh, :$layout = self.layout) {
+    method write(Any:D: IO::Handle \fh, :$layout = self.packing-layout) {
         fh.write: self.pack(:$layout);
     }
 
-    method layout(Bool :$terminate = True --> CArray) {
-        my @vec;
+    method packing-layout(Bool :$terminate = True --> CArray) {
+        my @layout;
         my $offset = 0;
         my $max-size = 0;
 
@@ -144,13 +145,13 @@ role CStruct::Packing[Endian $endian = HostEndian]
                 when CStruct::Packing {
                     die "can only handle inline structs (please use HAS on sub-structs)"
                         unless $att.inlined;
-                    my @sub-vect = .layout(:!terminate).list;
-                    if @sub-vect {
-                        my @sizes = @sub-vect.map(*.abs);
+                    my @sub-layout = .packing-layout(:!terminate).list;
+                    if @sub-layout {
+                        my @sizes = @sub-layout.map(*.abs);
                         my $size = @sizes.max;
                         my $pad = $offset %% $size ?? 0 !! $size - $offset % $size;
-                        @sub-vect[0] = $pad;
-                        @vec.append: @sub-vect;
+                        @sub-layout[0] = $pad;
+                        @layout.append: @sub-layout;
                         $offset += @sizes.sum
                     }
                 }
@@ -159,19 +160,19 @@ role CStruct::Packing[Endian $endian = HostEndian]
                     $max-size = $size if $size > $max-size;
                     my $pad = $offset %% $size ?? 0 !! $size - $offset % $size;
                     $offset += $pad + $size;
-                    @vec.push: $pad;
-                    @vec.push: ($endian == HostEndian ?? 1 !! -1) * $size;
+                    @layout.push: $pad;
+                    @layout.push: ($endian == HostEndian ?? 1 !! -1) * $size;
                 }
             }
         }
         if $terminate {
             my $pad = $offset % $max-size;
-            @vec.push: $pad;
-            @vec.push: 0;
+            @layout.push: $pad;
+            @layout.push: 0;
         }
-        CArray[int8].new: @vec;
+        CArray[int8].new: @layout;
     }
 
-    method packed-size(:$layout = self.layout) { packing_packed_size($layout) }
-    method struct-size(:$layout = self.layout) { packing_struct_size($layout) }
+    method packed-size(:$layout = self.packing-layout) { packing_packed_size($layout) }
+    method unpacked-size(:$layout = self.packing-layout) { packing_struct_size($layout) }
 }

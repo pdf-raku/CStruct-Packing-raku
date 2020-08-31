@@ -1,6 +1,7 @@
 use Test;
 use CStruct::Packing;
-plan 1;
+use NativeCall;
+plan 2;
 
 class BaseStruct {
     has uint16 $.a;
@@ -8,10 +9,14 @@ class BaseStruct {
     has uint8  $.c;
 }
 
-class Struct is BaseStruct is repr('CStruct') does CStruct::Packing[BigEndian] {
+class Struct
+    is BaseStruct
+    is repr('CStruct')
+    does CStruct::Packing[BigEndian] {
     has uint16 $.c;
 }
 
+is Struct.unpacked-size, nativesizeof(Struct);
 my $s = Struct.new: :a(42), :b(99), :c(69);
 my $n-buf = $s.pack;
 is-deeply $n-buf.list, (
