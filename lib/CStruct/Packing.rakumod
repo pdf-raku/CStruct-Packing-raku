@@ -79,33 +79,24 @@ sub packing_unpack(Pointer, Blob, CArray --> size_t) is native(PACKING-LIB) { * 
 sub packing_packed_size(CArray --> size_t) is native(PACKING-LIB) { * }
 sub packing_struct_size(CArray --> size_t) is native(PACKING-LIB) { * }
 
-
-my role Packing {
-
-    method host-endian { HostEndian }
-
-    sub storage-atts($class, :%pos, :@atts) {
-        storage-atts($_, :%pos, :@atts) for $class.^parents;
-        for $class.^attributes(:local) -> $att {
-            my $name := $att.name;
-            with %pos{$name} {
-                @atts[$_] = $att;
-            }
-            elsif $name {
-                %pos{$name} = +@atts;
-                @atts.push: $att;
-            }
+sub storage-atts($class, :%pos, :@atts) {
+    storage-atts($_, :%pos, :@atts) for $class.^parents;
+    for $class.^attributes(:local) -> $att {
+        my $name := $att.name;
+        with %pos{$name} {
+            @atts[$_] = $att;
         }
-        @atts;
+        elsif $name {
+            %pos{$name} = +@atts;
+            @atts.push: $att;
+        }
     }
-    method !attributes {
-        storage-atts(self.WHAT);
-    }
-
+    @atts;
 }
 
-role CStruct::Packing[Endian $endian = HostEndian]
-    does Packing {
+role CStruct::Packing[Endian \endian = HostEndian] {
+
+    method host-endian { HostEndian }
 
     method pack(Any:D: Blob $buf? is copy, :$layout = self.packing-layout --> Blob) {
         my $bytes := packing_packed_size($layout);
@@ -134,35 +125,43 @@ role CStruct::Packing[Endian $endian = HostEndian]
         fh.write: self.pack(:$layout);
     }
 
-    method packing-layout(Bool :$terminate = True --> CArray) {
+    method packed-size(:$layout = self.packing-layout) { packing_packed_size($layout) }
+    method unpacked-size(:$layout = self.packing-layout) { packing_struct_size($layout) }
+
+    method packing-layout(@atts = storage-atts(self), Bool :$terminate = True, :$endian = endian // HostEndian --> CArray) {
         my @layout;
         my $offset = 0;
         my $max-size = 0;
 
-        for self!attributes -> $att {
-            
-            given $att.type {
+        for @atts -> $att {
+
+            my @sub-layout = do given $att.type {
                 when CStruct::Packing {
                     die "can only handle inline structs (please use HAS on sub-structs)"
                         unless $att.inlined;
-                    my @sub-layout = .packing-layout(:!terminate).list;
-                    if @sub-layout {
-                        my @sizes = @sub-layout.map(*.abs);
-                        my $size = @sizes.max;
-                        my $pad = $offset %% $size ?? 0 !! $size - $offset % $size;
-                        @sub-layout[0] = $pad;
-                        @layout.append: @sub-layout;
-                        $offset += @sizes.sum
-                    }
+                    .packing-layout(:!terminate).list;
+                }
+                when .REPR eq 'CStruct' {
+                    die "can only handle inline structs (please use HAS on sub-structs)"
+                        unless $att.inlined;
+                    my @sub-atts = storage-atts($_);
+                    self.packing-layout(@sub-atts, :!terminate, :$endian).list;
                 }
                 default {
                     my $size := nativesizeof($_);
                     $max-size = $size if $size > $max-size;
                     my $pad = $offset %% $size ?? 0 !! $size - $offset % $size;
-                    $offset += $pad + $size;
-                    @layout.push: $pad;
-                    @layout.push: ($endian == HostEndian ?? 1 !! -1) * $size;
+                    [$pad, ($endian == HostEndian ?? 1 !! -1) * $size];
                 }
+            }
+
+            if @sub-layout {
+                my @sizes = @sub-layout.map(*.abs);
+                my $size = @sizes.max;
+                my $pad = $offset %% $size ?? 0 !! $size - $offset % $size;
+                @sub-layout[0] = $pad;
+                @layout.append: @sub-layout;
+                $offset += @sizes.sum
             }
         }
         if $terminate {
@@ -173,6 +172,4 @@ role CStruct::Packing[Endian $endian = HostEndian]
         CArray[int8].new: @layout;
     }
 
-    method packed-size(:$layout = self.packing-layout) { packing_packed_size($layout) }
-    method unpacked-size(:$layout = self.packing-layout) { packing_struct_size($layout) }
 }

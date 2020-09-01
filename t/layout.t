@@ -1,7 +1,7 @@
 use v6;
 use Test;
 use CStruct::Packing :Endian;
-plan 1;
+plan 2;
 
 use NativeCall;
 
@@ -21,6 +21,7 @@ class NetStruct is repr('CStruct') does CStruct::Packing[NetworkEndian] {
 }
 
 my @layout = NetStruct.packing-layout.list;
+is NetStruct.unpacked-size, nativesizeof(NetStruct);
 if $*KERNEL.endian == LittleEndian {
     is-deeply @layout, [0, -2,   0, -1,   1, -2,   2,  4,   0, 0];
 }

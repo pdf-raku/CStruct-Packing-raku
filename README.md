@@ -37,8 +37,7 @@ say "GIF has size {$screen.width} X {$screen.height}";
 ```
 
 It currently handles records containing native integers (`int8`, `uint8`, `int16`, etc),
-numerics (`num32`, `num64`) and sub-records of type `CStruct::Packing`. These
-must be declared as inline structs, using the `HAS` keyword.
+numerics (`num32`, `num64`) and inlined CStruct sub-records.
 
 - Data may read be and written to binary files, via the `read` and `write` methods
 
