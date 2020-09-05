@@ -74,8 +74,10 @@ constant NetworkEndian is export(:NetworkEndian,:Endian) = BigEndian;
 constant VaxEndian is export(:VaxEndian,:Endian) = LittleEndian;
 constant HostEndian is export(:HostEndian,:Endian) = $*KERNEL.endian;
 
-sub packing_pack(Pointer, Blob, CArray --> size_t) is native(PACKING-LIB) { * }
-sub packing_unpack(Pointer, Blob, CArray --> size_t) is native(PACKING-LIB) { * }
+role CStruct::Packing {...}
+
+sub packing_pack(Pointer, Blob, size_t, CArray --> size_t) is native(PACKING-LIB) { * }
+sub packing_unpack(Pointer, Blob, size_t, CArray --> size_t) is native(PACKING-LIB) { * }
 sub packing_packed_size(CArray --> size_t) is native(PACKING-LIB) { * }
 sub packing_struct_size(CArray --> size_t) is native(PACKING-LIB) { * }
 
@@ -102,23 +104,24 @@ role CStruct::Packing[Endian \endian = HostEndian] {
         my $bytes := packing_packed_size($layout);
         $buf //= buf8.allocate($bytes);
         die "buffer size ({$buf.bytes}) < {$bytes} bytes" unless $buf.bytes >= $bytes;
-        packing_pack(nativecast(Pointer, self), $buf, $layout);
+        packing_pack(nativecast(Pointer, self), $buf, $buf.bytes, $layout);
         $buf;
     }
 
-    method unpack(Blob:D $buf is copy, :$layout = self.packing-layout, UInt :$offset) {
+    method unpack(Blob:D $buf is copy, :$layout = self.packing-layout, UInt :$offset, Bool :$pad) {
         my $bytes := packing_packed_size($layout);
         $buf .= subbuf($offset) if $offset;
-        die "buffer size ({$buf.bytes}) < {$bytes} bytes" unless $buf.bytes >= $bytes;
+        die "buffer size ({$buf.bytes}) < {$bytes} bytes"
+            if $buf.bytes < $bytes && !$pad;
         my $obj := do with self { $_ } else { .new }
-        packing_unpack(nativecast(Pointer, $obj), $buf, $layout);
+        packing_unpack(nativecast(Pointer, $obj), $buf, $buf.bytes, $layout);
         $obj;
     }
 
-    method read(IO::Handle \fh, UInt :$offset, :$layout = self.packing-layout) {
+    method read(IO::Handle \fh, UInt :$offset, :$layout = self.packing-layout, |c) {
         fh.read($_) with $offset;
         my $buf := fh.read(packing_packed_size($layout));
-        self.unpack($buf, :$layout);
+        self.unpack($buf, :$layout, |c);
     }
 
     method write(Any:D: IO::Handle \fh, :$layout = self.packing-layout) {
@@ -136,16 +139,17 @@ role CStruct::Packing[Endian \endian = HostEndian] {
         for @atts -> $att {
 
             my @sub-layout = do given $att.type {
-                when CStruct::Packing {
-                    die "can only handle inline structs (please use HAS on sub-structs)"
-                        unless $att.inlined;
-                    .packing-layout(:!terminate).list;
-                }
                 when .REPR eq 'CStruct' {
-                    die "can only handle inline structs (please use HAS on sub-structs)"
-                        unless $att.inlined;
-                    my @sub-atts = storage-atts($_);
-                    self.packing-layout(@sub-atts, :!terminate, :$endian).list;
+                    die "sub-struct {$att.name} is not in-lined (please use 'HAS' to in-line it)"
+                       unless $att.inlined;
+
+                    if .does(CStruct::Packing) {
+                        .packing-layout(:!terminate).list;
+                    }
+                    else {
+                        my @sub-atts = storage-atts($_);
+                        self.packing-layout(@sub-atts, :!terminate, :$endian).list;
+                    }
                 }
                 default {
                     my $size := nativesizeof($_);

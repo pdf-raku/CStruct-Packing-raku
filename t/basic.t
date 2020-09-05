@@ -20,6 +20,13 @@ my $n-struct = N.unpack: $n-buf;
 
 is-deeply $n-struct, $struct, 'network pack/unpack round-trip';
 
+$n-buf.reallocate(6);
+dies-ok { N.unpack }, 'unpack without :pad';
+$n-struct = N.unpack: $n-buf, :pad;
+is $n-struct.a, 10, 'unpack with padding';
+is $n-struct.b, 20, 'unpack with padding';
+is $n-struct.float, 0e0, 'unpack with padding';
+
 class V does CStruct::Packing[LittleEndian] is repr('CStruct') {
     has uint8  $.a;
     has uint16 $.b;

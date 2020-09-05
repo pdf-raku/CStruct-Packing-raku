@@ -6,65 +6,66 @@
 #include "packing.h"
 
 DLLEXPORT size_t
-packing_pack (uint8_t* cstruct, uint8_t* buf, int8_t* vec) {
+packing_pack (uint8_t* cstruct, uint8_t* buf, size_t buf_len, int8_t* vec) {
     size_t offset = 0;
+    size_t buf_pos = 0;
     int i;
-    uint8_t* start = buf;
 
     for (;;) {
         uint8_t pad = *(vec++);
-        int8_t size = *(vec++);
+        int8_t sign = *vec < 0 ? -1 : 1;
+        int8_t size = *(vec++) * sign;
 
         // alignment padding
         offset += pad;
 
-        if (size == 0) {
+        if (size == 0 || (buf_pos + size > buf_len)) {
             break;
         }
-        else if (size > 0) {
+        else if (sign > 0) {
             // direct copy
             for (i = 0; i < size; i++) {
-                *(buf++) = *(cstruct + offset++);
+                buf[buf_pos++] = *(cstruct + offset++);
             }
         }
         else {
             // endian inversion
-            size = -size;
             offset += size;
             for (i = 1; i <= size; i++) {
-                *(buf++) = *(cstruct + offset - i);
+                buf[buf_pos++] = *(cstruct + offset - i);
             }
         }
     }
-    return buf - start;
+    return buf_pos;
 }
 
 DLLEXPORT size_t
-packing_unpack (uint8_t* cstruct, uint8_t* buf, int8_t* vec) {
+packing_unpack (uint8_t* cstruct, uint8_t* buf, size_t buf_len, int8_t* vec) {
     size_t offset = 0;
+    size_t buf_pos = 0;
     int i;
 
     for (;;) {
         uint8_t pad = *(vec++);
-        int8_t size = *(vec++);
+        int8_t sign = *vec < 0 ? -1 : 1;
+        int8_t size = *(vec++) * sign;
 
         offset += pad;
 
-        if (size == 0) {
+        if (size == 0 || (buf_pos + size > buf_len)) {
             break;
         }
-        else if (size > 0) {
+        else if (sign > 0) {
             // direct copy
             for (i = 0; i < size; i++) {
-                *(cstruct + offset++) = *(buf++);
+                cstruct[offset++] = buf[buf_pos++];
             }   
         }
         else {
             // endian inversion
-            size = -size;
             offset += size;
             for (i = 1; i <= size; i++) {
-                *(cstruct + offset - i) = *(buf++);
+                cstruct[offset - i] = buf[buf_pos++];
             }
         }
     }
