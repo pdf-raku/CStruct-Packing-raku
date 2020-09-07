@@ -76,6 +76,23 @@ constant HostEndian is export(:HostEndian,:Endian) = $*KERNEL.endian;
 
 role CStruct::Packing {...}
 
+# compute eight byte alignment, which can be platform dependant;
+
+multi sub alignment(num64)  {
+    class Num64 is repr('CStruct') { has byte $!b; has num64 $!v};
+    nativesizeof(Num64) - nativesizeof(num64);
+}
+multi sub alignment(int64)  {
+    class Int64 is repr('CStruct') { has byte $!b; has int64 $!v};
+    nativesizeof(Int64) - nativesizeof(int64);
+}
+multi sub alignment(uint64) { alignment(int64) }
+multi sub alignment($_) {
+    .REPR eq 'CStruct'
+        ?? .^attributes.map({ alignment(.type) }).max
+        !! nativesizeof($_);
+}
+
 sub packing_pack(Pointer, Blob, size_t, CArray --> size_t) is native(PACKING-LIB) { * }
 sub packing_unpack(Pointer, Blob, size_t, CArray --> size_t) is native(PACKING-LIB) { * }
 sub packing_packed_size(CArray --> size_t) is native(PACKING-LIB) { * }
@@ -96,7 +113,7 @@ sub storage-atts($class, :%pos, :@atts) {
     @atts;
 }
 
-role CStruct::Packing[Endian \endian = HostEndian] {
+role CStruct::Packing:ver<0.0.1>[Endian \endian = HostEndian] {
 
     method host-endian { HostEndian }
 
@@ -154,18 +171,16 @@ role CStruct::Packing[Endian \endian = HostEndian] {
                 default {
                     my $size := nativesizeof($_);
                     $max-size = $size if $size > $max-size;
-                    my $pad = $offset %% $size ?? 0 !! $size - $offset % $size;
-                    [$pad, ($endian == HostEndian ?? 1 !! -1) * $size];
+                    [Mu, ($endian == HostEndian ?? 1 !! -1) * $size];
                 }
             }
 
             if @sub-layout {
-                my @sizes = @sub-layout.map(*.abs);
-                my $size = @sizes.max;
-                my $pad = $offset %% $size ?? 0 !! $size - $offset % $size;
+                my $align = alignment($att.type);
+                my $pad = $offset %% $align ?? 0 !! $align - $offset % $align;
                 @sub-layout[0] = $pad;
                 @layout.append: @sub-layout;
-                $offset += @sizes.sum
+                $offset += .abs for @sub-layout;
             }
         }
         if $terminate {

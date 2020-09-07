@@ -1,9 +1,9 @@
 {
-    "perl"        : "6.c",
+    "perl"        : "6.*",
     "name"        : "CStruct::Packing",
     "license"     : "Artistic-2.0",
     "tags"        : ["binary", "endian", "native", "struct", "pack", "unpack" ], 
-    "version"     : "0.0.4",
+    "version"     : "0.0.1",
     "auth"        : "github:pdf-raku",
     "description" : "Endian safe Binary Struct packing and unpacking",
     "depends"     : [ ],
