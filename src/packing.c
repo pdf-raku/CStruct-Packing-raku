@@ -69,7 +69,7 @@ packing_unpack (uint8_t* cstruct, uint8_t* buf, size_t buf_len, int8_t* vec) {
             }
         }
     }
-    return offset;
+    return buf_pos;
 }
 
 DLLEXPORT size_t
@@ -86,17 +86,20 @@ packing_packed_size (int8_t* vec) {
     return packed_size;
 }
 
-// Sanity check. This should be the same as nativesizeof on the struct
+// This should be the same as nativesizeof on the struct
 DLLEXPORT size_t
-packing_struct_size (int8_t* vec) {
-    int unpacked_size = 0;
+packing_struct_size (int8_t* vec, int8_t align) {
+    int struct_size = 0;
 
     for (;;) {
         uint8_t pad = *(vec++);
         uint8_t size = *vec > 0 ? *vec : -*vec;
-        unpacked_size += pad + size;
+        struct_size += pad + size;
         if (size == 0) break;
         ++vec;
     }
-    return unpacked_size;
+    while (align && struct_size % align) {
+        struct_size++;
+    }
+    return struct_size;
 }

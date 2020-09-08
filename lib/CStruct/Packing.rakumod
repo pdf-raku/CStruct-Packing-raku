@@ -96,7 +96,7 @@ multi sub alignment($_) {
 sub packing_pack(Pointer, Blob, size_t, CArray --> size_t) is native(PACKING-LIB) { * }
 sub packing_unpack(Pointer, Blob, size_t, CArray --> size_t) is native(PACKING-LIB) { * }
 sub packing_packed_size(CArray --> size_t) is native(PACKING-LIB) { * }
-sub packing_struct_size(CArray --> size_t) is native(PACKING-LIB) { * }
+sub packing_struct_size(CArray, uint8 --> size_t) is native(PACKING-LIB) { * }
 
 sub storage-atts($class, :%pos, :@atts) {
     storage-atts($_, :%pos, :@atts) for $class.^parents;
@@ -146,7 +146,7 @@ role CStruct::Packing:ver<0.0.1>[Endian \endian = HostEndian] {
     }
 
     method packed-size(:$layout = self.packing-layout) { packing_packed_size($layout) }
-    method unpacked-size(:$layout = self.packing-layout) { packing_struct_size($layout) }
+    method unpacked-size(:$layout = self.packing-layout, :$align = alignment(self)) { packing_struct_size($layout, $align) }
 
     method packing-layout(@atts = storage-atts(self), Bool :$terminate = True, :$endian = endian // HostEndian --> CArray) {
         my @layout;
