@@ -95,6 +95,10 @@ multi sub alignment($_) {
 
 sub packing_pack(Pointer, Blob, size_t, CArray --> size_t) is native(PACKING-LIB) { * }
 sub packing_unpack(Pointer, Blob, size_t, CArray --> size_t) is native(PACKING-LIB) { * }
+
+sub packing_pack_array(CArray, size_t, Blob, size_t, CArray --> size_t) is native(PACKING-LIB) { * }
+sub packing_unpack_array(CArray, size_t, Blob, size_t, CArray --> size_t) is native(PACKING-LIB) { * }
+
 sub packing_packed_size(CArray --> size_t) is native(PACKING-LIB) { * }
 sub packing_struct_size(CArray, uint8 --> size_t) is native(PACKING-LIB) { * }
 
@@ -125,6 +129,14 @@ role CStruct::Packing:ver<0.0.1>[Endian \endian = HostEndian] {
         $buf;
     }
 
+    method pack-array(CArray:D $array where {.of ~~ self.WHAT}, UInt $n = $array.elems, Blob $buf? is copy, :$layout = self.packing-layout --> Blob) {
+        my $bytes := packing_packed_size($layout);
+        $buf //= buf8.allocate($bytes * $n);
+        die "buffer size ({$buf.bytes}) < {$bytes} x $n bytes" unless $buf.bytes >= $bytes * $n;
+        packing_pack_array($array, $n, $buf, $buf.bytes, $layout);
+        $buf;
+    }
+
     method unpack(Blob:D $buf is copy, :$layout = self.packing-layout, UInt :$offset, Bool :$pad) {
         my $bytes := packing_packed_size($layout);
         $buf .= subbuf($offset) if $offset;
@@ -133,6 +145,28 @@ role CStruct::Packing:ver<0.0.1>[Endian \endian = HostEndian] {
         my $obj := do with self { $_ } else { .new }
         packing_unpack(nativecast(Pointer, $obj), $buf, $buf.bytes, $layout);
         $obj;
+    }
+
+    method unpack-array(Blob:D $buf is copy, UInt $n? is copy, :$layout = self.packing-layout, UInt :$offset, Bool :$pad --> CArray) {
+        my $bytes := packing_packed_size($layout);
+        $buf .= subbuf($offset) if $offset;
+        with $n {
+            if $buf.bytes < $bytes * $n {
+                if $pad {
+                    $n = $buf.bytes div $bytes;
+                }
+                else {
+                    die "buffer size ({$buf.bytes}) < {$bytes} x $n bytes"
+                }
+            }
+        }
+        else {
+            $_ = $buf.bytes div $bytes;
+        }
+        my $array = CArray[self.WHAT].new: self.new xx $n;
+
+        packing_unpack_array($array, $n, $buf, $buf.bytes, $layout);
+        $array;
     }
 
     method read(IO::Handle \fh, UInt :$offset, :$layout = self.packing-layout, |c) {

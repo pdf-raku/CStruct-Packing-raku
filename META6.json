@@ -6,7 +6,7 @@
     "version"     : "0.0.1",
     "auth"        : "github:pdf-raku",
     "description" : "Endian safe Binary Struct packing and unpacking",
-    "depends"     : [ ],
+    "depends"     : [ "LibraryMake" ],
     "resources": [
         "libraries/packing"
     ],

@@ -73,6 +73,32 @@ packing_unpack (uint8_t* cstruct, uint8_t* buf, size_t buf_len, int8_t* vec) {
 }
 
 DLLEXPORT size_t
+packing_pack_array (void** array, size_t array_len, uint8_t* buf, size_t buf_len, int8_t* vec) {
+    size_t buf_pos = 0;
+    size_t n;
+    for (n = 0; n < array_len && buf_pos < buf_len; n++) {
+        size_t avail_len = buf_len - buf_pos;
+        if (array[n] != NULL) {
+            buf_pos += packing_pack(array[n], buf + buf_pos, avail_len, vec);
+        }
+    }
+    return n;
+}
+
+DLLEXPORT size_t
+packing_unpack_array (void** array, size_t array_len, uint8_t* buf, size_t buf_len, int8_t*vec) {
+    size_t buf_pos = 0;
+    size_t n;
+    for (n = 0; n < array_len && buf_pos < buf_len; n++) {
+        size_t avail_len = buf_len - buf_pos;
+        if (array[n] != NULL) {
+            buf_pos += packing_unpack(array[n], buf + buf_pos, avail_len, vec);
+        }
+    }
+    return n;
+}
+
+DLLEXPORT size_t
 packing_packed_size (int8_t* vec) {
     size_t packed_size = 0;
     uint8_t size;
