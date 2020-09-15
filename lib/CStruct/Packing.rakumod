@@ -70,6 +70,7 @@ Return the endian of the host BigEndian or LittleEndian.
 use NativeCall;
 
 constant PACKING-LIB = %?RESOURCES<libraries/packing>;
+constant CLIB = Rakudo::Internals.IS-WIN ?? 'msvcrt' !! Str;
 constant NetworkEndian is export(:NetworkEndian,:Endian) = BigEndian;
 constant VaxEndian is export(:VaxEndian,:Endian) = LittleEndian;
 constant HostEndian is export(:HostEndian,:Endian) = $*KERNEL.endian;
@@ -101,6 +102,38 @@ sub packing_unpack_array(CArray, size_t, Blob, size_t, CArray --> size_t) is nat
 
 sub packing_packed_size(CArray --> size_t) is native(PACKING-LIB) { * }
 sub packing_struct_size(CArray, uint8 --> size_t) is native(PACKING-LIB) { * }
+
+sub packing_mempack(CArray, CArray, size_t, uint8) is native(PACKING-LIB) { * }
+sub memcpy(CArray, CArray, size_t) is native(CLIB) {*}
+
+our sub mem-unpack(CArray $dest is copy, buf8 $buf? is copy, :$endian = HostEndian, :$n is copy) is export(:mem-unpack) {
+    my uint8 $of-size = nativesizeof($dest.of);
+    my $max-n = $buf.bytes div $of-size;
+    $n //= $max-n;
+    die ":n($n) is too large (maximum is $max-n)" if $buf.bytes div $of-size > $max-n;
+    without $dest {
+        $_ .= new;
+        .[$n - 1] = 0 if $n;
+    }
+
+    my CArray $src = nativecast(CArray, $buf);
+
+    $endian == HostEndian
+        ?? memcpy($dest, $src, $n * $of-size)
+        !! packing_mempack($dest, $src, $n, $of-size);
+    $dest;
+}
+
+our sub mem-pack(CArray $src is copy, buf8 $buf? is copy, :$endian = HostEndian, Int:D :$n = $src.elems) is export(:mem-pack) {
+    my uint8 $of-size = nativesizeof($src.of);
+    without $buf { $_ .= new }
+    $buf.reallocate($n * $of-size);
+    my CArray $dest = nativecast(CArray, $buf);
+    $endian == HostEndian
+        ?? memcpy($dest, $src, $n * $of-size)
+        !! packing_mempack($dest, $src, $n, $of-size);
+    $buf;
+}
 
 sub storage-atts($class, :%pos, :@atts) {
     storage-atts($_, :%pos, :@atts) for $class.^parents;

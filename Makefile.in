@@ -20,6 +20,12 @@ test : all
 clean :
 	@rm -f $(SRC)/*.o resources/libraries/%LIB_NAME%
 
+uninstall :
+	zef uninstall CStruct::Packing
+
+install :
+	zef install .
+
 realclean : clean
 	@rm -f Makefile
 

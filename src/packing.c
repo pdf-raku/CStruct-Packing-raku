@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+#include <assert.h>
 /* Get prototype. */
 #include "packing.h"
 
@@ -96,6 +97,24 @@ packing_unpack_array (void** array, size_t array_len, uint8_t* buf, size_t buf_l
         }
     }
     return n;
+}
+
+DLLEXPORT size_t
+packing_mempack (uint8_t* dest, uint8_t* src, size_t n, uint8_t of_size) {
+    size_t offset = 0;
+    size_t i;
+    uint8_t j;
+
+    assert(word_size > 0);
+
+    for (i = 0; i < n; i++) {
+        // endian inversion on each element
+        size_t end = offset + of_size - 1;
+        for (j = 0; j < of_size; j++) {
+            dest[offset++] = src[end - j];
+        }
+    }
+    return offset;
 }
 
 DLLEXPORT size_t

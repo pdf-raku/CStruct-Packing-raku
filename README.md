@@ -49,10 +49,10 @@ The two fixed modes are:
 
 - VaxEndian (or LittleEndian) - least significant byte written first
 
-- Network (or BigEndian) - most significant byte written first
+- NetworkEndian (or BigEndian) - most significant byte written first
 
-There is also a platform-dependant `Host` mode. This will read and write
-binary data in the same endianess as the host computer.
+There is also a platform-dependant `HostEndian` mode. This will read
+and write binary data in the same endianess as the host computer.
 
 Endian Examples:
 
