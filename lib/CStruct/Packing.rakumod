@@ -57,9 +57,9 @@ Class level method. Read data from a binary file. Create an object.
 
 Object level method. Write the object to a file
 
-=head2 bytes
+=head2 packed-size
 
-Determine the overall size of the struct. Sum of all its attributes.
+Determine the overall size of the struct when packed. Sum of all its attributes.
 
 =head2 host-endian
 
@@ -156,16 +156,18 @@ role CStruct::Packing:ver<0.0.1>[Endian \endian = HostEndian] {
 
     method pack(Any:D: Blob $buf? is copy, :$layout = self.packing-layout --> Blob) {
         my $bytes := packing_packed_size($layout);
-        $buf //= buf8.allocate($bytes);
-        die "buffer size ({$buf.bytes}) < {$bytes} bytes" unless $buf.bytes >= $bytes;
+        $buf //= buf8.new;
+        $buf.reallocate($bytes) if $buf.bytes < $bytes;
+
         packing_pack(nativecast(Pointer, self), $buf, $buf.bytes, $layout);
         $buf;
     }
 
     method pack-array(CArray:D $array where {.of ~~ self.WHAT}, UInt $n = $array.elems, Blob $buf? is copy, :$layout = self.packing-layout --> Blob) {
         my $bytes := packing_packed_size($layout);
-        $buf //= buf8.allocate($bytes * $n);
-        die "buffer size ({$buf.bytes}) < {$bytes} x $n bytes" unless $buf.bytes >= $bytes * $n;
+        $buf //= buf8.new;
+        $buf.reallocate($bytes * $n)
+            if $buf.bytes < $bytes * $n;
         packing_pack_array($array, $n, $buf, $buf.bytes, $layout);
         $buf;
     }
