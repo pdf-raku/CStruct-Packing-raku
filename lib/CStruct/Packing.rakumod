@@ -113,25 +113,29 @@ our sub mem-unpack(CArray $dest is copy, buf8 $buf? is copy, :$endian = HostEndi
     die ":n($n) is too large (maximum is $max-n)" if $buf.bytes div $of-size > $max-n;
     without $dest {
         $_ .= new;
-        .[$n - 1] = 0 if $n;
     }
 
-    my CArray $src = nativecast(CArray, $buf);
+    if $n {
+        my CArray $src = nativecast(CArray, $buf);
+        $dest[$n - 1] = 0;
 
-    $endian == HostEndian
-        ?? memcpy($dest, $src, $n * $of-size)
-        !! packing_mempack($dest, $src, $n, $of-size);
+        $endian == HostEndian
+            ?? memcpy($dest, $src, $n * $of-size)
+            !! packing_mempack($dest, $src, $n, $of-size);
+    }
     $dest;
 }
 
-our sub mem-pack(CArray $src is copy, buf8 $buf? is copy, :$endian = HostEndian, Int:D :$n = $src.elems) is export(:mem-pack) {
+our sub mem-pack(CArray $src, buf8 $buf? is copy, :$endian = HostEndian, Int:D :$n = $src.elems) is export(:mem-pack) {
     my uint8 $of-size = nativesizeof($src.of);
     without $buf { $_ .= new }
     $buf.reallocate($n * $of-size);
-    my CArray $dest = nativecast(CArray, $buf);
-    $endian == HostEndian
-        ?? memcpy($dest, $src, $n * $of-size)
-        !! packing_mempack($dest, $src, $n, $of-size);
+    if $n {
+        my CArray $dest = nativecast(CArray, $buf);
+        $endian == HostEndian
+            ?? memcpy($dest, $src, $n * $of-size)
+            !! packing_mempack($dest, $src, $n, $of-size);
+    }
     $buf;
 }
 
