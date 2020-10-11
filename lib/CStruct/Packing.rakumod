@@ -208,13 +208,13 @@ role CStruct::Packing:ver<0.0.1>[Endian \endian = HostEndian] {
         $array;
     }
 
-    method read(IO::Handle \fh, UInt :$offset, :$layout = self.packing-layout, |c) {
+    method read(\fh, UInt :$offset, :$layout = self.packing-layout, |c) {
         fh.read($_) with $offset;
         my $buf := fh.read(packing_packed_size($layout));
         self.unpack($buf, :$layout, |c);
     }
 
-    method write(Any:D: IO::Handle \fh, :$layout = self.packing-layout) {
+    method write(Any:D: \fh, :$layout = self.packing-layout) {
         fh.write: self.pack(:$layout);
     }
 
